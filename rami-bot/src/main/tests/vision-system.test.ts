@@ -3,7 +3,21 @@
  * Verifies OCR, UI recognition, and image comparison
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Mock tesseract.js for environments without Tesseract installed
+vi.mock('tesseract.js', () => ({
+    createWorker: vi.fn().mockResolvedValue({
+        recognize: vi.fn().mockResolvedValue({ 
+            data: { text: 'mocked OCR text', confidence: 95 } 
+        }),
+        terminate: vi.fn().mockResolvedValue(undefined),
+        load: vi.fn().mockResolvedValue(undefined),
+        loadLanguage: vi.fn().mockResolvedValue(undefined),
+        initialize: vi.fn().mockResolvedValue(undefined),
+    })
+}))
+
 import { performOCR, detectUIElements, compareImages } from '../tools/vision'
 
 describe('Vision System Integration', () => {

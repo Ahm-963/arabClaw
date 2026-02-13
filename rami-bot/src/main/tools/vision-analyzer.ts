@@ -63,9 +63,21 @@ export class VisionAnalyzer {
      */
     async performOCR(imageData: string, language: string = 'eng'): Promise<OCRResult> {
         try {
-            const worker = await createWorker(language)
-            const ret = await worker.recognize(Buffer.from(imageData, 'base64'))
+            console.log(`[VisionAnalyzer] Initializing OCR worker for language: ${language}...`)
+
+            // Use local traineddata if possible to avoid CDN issues
+            const currentDir = process.cwd()
+            const worker = await createWorker(language, 1, {
+                langPath: currentDir, // Look for .traineddata in current directory
+                cachePath: currentDir,
+                logger: m => console.log(`[OCR-Status] ${m.status}: ${Math.round(m.progress * 100)}%`)
+            })
+
+            const imageBuffer = Buffer.from(imageData, 'base64')
+            const ret = await worker.recognize(imageBuffer)
             await worker.terminate()
+
+            console.log(`[VisionAnalyzer] OCR complete. Confidence: ${Math.round(ret.data.confidence)}%`)
 
             const result: OCRResult = {
                 success: true,
@@ -92,7 +104,7 @@ export class VisionAnalyzer {
                 text: '',
                 confidence: 0,
                 blocks: [],
-                error: error.message
+                error: error.message || 'Unknown OCR error'
             }
         }
     }

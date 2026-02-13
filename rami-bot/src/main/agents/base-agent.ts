@@ -50,25 +50,39 @@ export abstract class BaseAgent implements Agent {
         images?: any[]
     ): Promise<string> {
         const settings = settingsManager.getSettingsSync()
-        const targetProvider = provider || settings.llmProvider
+        const initialProvider = provider || settings.llmProvider
 
-        try {
-            return await this.executeLLMCall(targetProvider, systemPrompt, userMessage, includeTools, images)
-        } catch (error: any) {
-            console.error(`[BaseAgent] Primary provider ${targetProvider} failed:`, error.message)
+        // Build list of providers to try (Advanced Fallback)
+        const enabledConfigs = settingsManager.getEnabledConfigs()
+        const providersToTry: string[] = [initialProvider]
 
-            // Fallback Logic
-            if (settings.fallbackProvider && settings.fallbackProvider !== targetProvider) {
-                console.log(`[BaseAgent] Attempting fallback to ${settings.fallbackProvider}...`)
-                try {
-                    return await this.executeLLMCall(settings.fallbackProvider, systemPrompt, userMessage, includeTools, images)
-                } catch (fallbackError: any) {
-                    console.error(`[BaseAgent] Fallback provider ${settings.fallbackProvider} also failed:`, fallbackError.message)
-                }
+        for (const cfg of enabledConfigs) {
+            if (cfg.id !== initialProvider && !providersToTry.includes(cfg.id)) {
+                providersToTry.push(cfg.id)
             }
-
-            return `Error: LLM Call failed. ${error.message}`
         }
+
+        const standardProviders = ['claude', 'openai', 'gemini']
+        for (const p of standardProviders) {
+            if (!providersToTry.includes(p)) {
+                providersToTry.push(p)
+            }
+        }
+
+        let lastError: any = null
+
+        for (const targetProvider of providersToTry) {
+            try {
+                console.log(`[BaseAgent] ${this.name} attempting call via ${targetProvider}...`)
+                return await this.executeLLMCall(targetProvider, systemPrompt, userMessage, includeTools, images)
+            } catch (error: any) {
+                console.warn(`[BaseAgent] Provider ${targetProvider} failed for ${this.name}:`, error.message)
+                lastError = error
+                // Continue to next provider
+            }
+        }
+
+        return `Error: All LLM providers failed for ${this.name}. Last error: ${lastError?.message || 'Unknown error'}`
     }
 
     private async executeLLMCall(provider: string, systemPrompt: string, userMessage: string, includeTools: boolean, images?: any[]): Promise<string> {
@@ -251,7 +265,15 @@ export abstract class BaseAgent implements Agent {
 
         // 3. GOOGLE GEMINI
         if (providerConfig.provider === 'gemini') {
-            const model = this.genAI!.getGenerativeModel({
+            if (!this.genAI && providerConfig.apiKey) {
+                this.genAI = new GoogleGenerativeAI(providerConfig.apiKey)
+            }
+
+            if (!this.genAI) {
+                throw new Error('Google Gemini API key not configured.')
+            }
+
+            const model = this.genAI.getGenerativeModel({
                 model: providerConfig.model,
                 systemInstruction: systemPrompt
             })

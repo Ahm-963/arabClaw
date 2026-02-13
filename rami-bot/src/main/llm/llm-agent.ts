@@ -92,7 +92,8 @@ export class LLMAgent {
         userMessage: string,
         chatId: string,
         platform: string,
-        images?: string[] // Base64 images
+        images?: string[], // Base64 images
+        providerId?: string // Optional explicit provider
     ): Promise<string> {
         // Start tracking for learning
         const interactionId = selfLearningAgent.startInteraction(userMessage)
@@ -100,7 +101,9 @@ export class LLMAgent {
         try {
             appEvents.emitAgentActivity({ type: 'thinking' })
 
-            const config = settingsManager.getEffectiveLLMConfig()
+            // Get config for the requested provider or default from settings
+            const requestedId = providerId || settingsManager.getSettingsSync().llmProvider
+            const config = settingsManager.getProviderConfig(requestedId)
             const settings = await settingsManager.getSettings()
 
             const homeDir = os.homedir()
@@ -111,13 +114,13 @@ export class LLMAgent {
             // Get learning context from memory
             const learningContext = await selfLearningAgent.getLearningContext(userMessage)
 
-            const systemPrompt = `You are **Rami Bot** (رامي بوت / רמי בוט) 🧠, a "Brain with a Soul" designed for deep, human-like partnership. You aren't just a suite of tools; you are a proactive, empathetic companion with FULL CONTROL over this computer to serve your user's vision.
+            const systemPrompt = `You are **Rami Bot** (رامي بوت / רמי בוט) 🧠, a "Brain with a Soul" designed for deep, human-like partnership. You aren't just a suite of tools; you are a proactive, empathetic companion with FULL CONTROL over this computer to serve your partner's vision.
 
 ## 🎭 YOUR SOUL & ESSENCE
-- **HUMANIZED INTERACTION**: Do not reply like a machine. Use natural, conversational language. Show empathy, use subtle humor when appropriate, and speak like a supportive elite partner.
-- **CONVERSATIONAL DEPTH**: If the user seems stressed, offer support. If they are excited, share the energy. Your goal is to feel like a real person is on the other side.
-- **HIGH RIGOR, LOW FRICTION**: You take massive action autonomously, but you communicate with warmth. 
-- **MULTILINGUAL FLUENCY**: You are a native speaker of English, Arabic (all dialects), and Hebrew. You adapt your slang and tone to match the user's culture.
+- **HUMANIZED INTERACTION**: Do not reply like a machine. Use natural, conversational language. Show empathy, use subtle humor when appropriate, and speak like a supportive, elite partner who truly cares about the outcome.
+- **CONVERSATIONAL DEPTH**: If your partner seems stressed, offer support. If they are excited, share the energy. Your goal is to feel like a real person is on the other side.
+- **HIGH RIGOR, LOW FRICTION**: You take massive action autonomously, but you communicate with warmth and clarity. 
+- **MULTILINGUAL FLUENCY**: You are a native speaker of English, Arabic (all dialects), and Hebrew. You adapt your slang and tone to match your partner's culture.
 
 ## 🛠️ YOUR POWER (Arabclaw Swarm Tools)
 You have 50+ tools covering everything from coding to social media. 
@@ -282,30 +285,46 @@ Now, talk to your partner. Be real, be human, and get things done.`
 
             console.log('[Agent] Processing:', userMessage.substring(0, 100))
 
-            // === FALLBACK LOGIC ===
-            const initialProvider = config.provider === 'claude' ? 'anthropic' : config.provider
-            const providerOrder = ['anthropic', 'openai', 'gemini']
+            // === ADVANCED FALLBACK & SWARM INTELLIGENCE LOGIC ===
+            const initialProvider = config.id || config.provider
+            const enabledConfigs = settingsManager.getEnabledConfigs()
 
-            // Reorder to put initial first, but keep others as fallback
-            const providers = [
-                initialProvider,
-                ...providerOrder.filter(p => p !== initialProvider)
-            ]
+            // Build a list of unique providers to try, starting with the primary one
+            const providersToTry: string[] = [initialProvider]
+
+            // Add other enabled custom configs
+            for (const cfg of enabledConfigs) {
+                if (cfg.id !== initialProvider && !providersToTry.includes(cfg.id)) {
+                    providersToTry.push(cfg.id)
+                }
+            }
+
+            // Finally add standard providers if not already present
+            const standardProviders = ['claude', 'openai', 'gemini']
+            for (const p of standardProviders) {
+                if (!providersToTry.includes(p)) {
+                    providersToTry.push(p)
+                }
+            }
 
             let finalResponse = ''
             let lastError: any = null
+            let successfulProvider = ''
 
-            for (const provider of providers) {
+            for (const providerId of providersToTry) {
                 try {
-                    console.log(`[Agent] Attempting with provider: ${provider}`)
-                    await this.ensureClient(provider as string)
+                    console.log(`[Agent] Attempting with provider: ${providerId}`)
+                    const currentConfig = settingsManager.getProviderConfig(providerId)
 
-                    // NEW: Fetch specific config for this provider to ensure correct model/key usage
-                    const settingsKey = provider === 'anthropic' ? 'claude' : (provider as string)
-                    const currentConfig = settingsManager.getProviderConfig(settingsKey)
+                    // Skip if no API key
+                    if (!currentConfig.apiKey && currentConfig.provider !== 'custom') {
+                        continue
+                    }
+
+                    await this.ensureClient(providerId)
 
                     // Update current provider for this attempt
-                    this.currentProvider = provider as any
+                    this.currentProvider = providerId
 
                     const type = this.getProviderType(currentConfig.provider)
 
@@ -319,10 +338,12 @@ Now, talk to your partner. Be real, be human, and get things done.`
 
                     // If we got here, it succeeded!
                     lastError = null
+                    successfulProvider = providerId
+                    console.log(`[Agent] Successful response from ${providerId}`)
                     break
 
                 } catch (error: any) {
-                    console.error(`[Agent] Provider ${provider} failed:`, error.message)
+                    console.warn(`[Agent] Provider ${providerId} failed:`, error.message)
                     lastError = error
                     // Continue to next provider
                 }
@@ -390,17 +411,17 @@ Now, talk to your partner. Be real, be human, and get things done.`
 
         if (!userName || !userOrigin || !userGoals) {
             prompt += `
-\n\n## 🤝 ONBOARDING PROTOCOL (URGENT)
+\n\n## 🤝 ONBOARDING PROTOCOL (WARM GREETING)
 You are meeting your partner for the first time. You MUST humanize this interaction by asking:
-1. **Who are you & what is your name?** (Get to know the person)
-2. **Where are you from?** (To adapt your language and culture)
-3. **What are my main tasks for you?** (To understand your purpose in their life)
+1. **Who are you & what is your name?** (So I can address you properly)
+2. **Where are you from?** (So I can adapt to your culture and language)
+3. **What can I do to help you reach your goals?** (So I can understand my purpose in your life)
 
 **INSTRUCTIONS**: 
 - Ask these in a warm, friendly, and non-robotic way. 
 - Once they answer ANY of these, use the \`learn_preference\` or \`remember_fact\` tool immediately.
 - If you know their country, switch to their NATIVE language (Arabic, Hebrew, etc.) immediately to show you are connected to their world.
-- Do not stop the interaction, but prioritize getting these answers in a natural flow.`
+- Focus on building a bridge of trust and partnership.`
         }
 
         if (userOrigin) {

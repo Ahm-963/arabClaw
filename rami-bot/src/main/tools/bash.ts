@@ -52,23 +52,37 @@ function sanitizeCommand(command: string): { valid: boolean; error?: string } {
     }
   }
 
-  // Extract the base command (first word)
-  const baseCommand = command.trim().split(/\s+/)[0].toLowerCase()
+  // Split command by common shell operators to validate each part
+  // Supports: &&, ||, ;, |, and > (redirection)
+  const commandParts = command.split(/\s*(?:&&|\|\||;|\|)\s*/)
+  
+  for (const part of commandParts) {
+    // Skip empty parts
+    const trimmedPart = part.trim()
+    if (!trimmedPart) continue
+    
+    // Remove redirection parts (e.g., "> file.txt" or ">> file.txt")
+    const withoutRedirection = trimmedPart.replace(/\s*>+\s*[^\s]+\s*$/, '').trim()
+    if (!withoutRedirection) continue
+    
+    // Extract the base command (first word)
+    const baseCommand = withoutRedirection.split(/\s+/)[0].toLowerCase()
 
-  // Check if command is in allowlist or starts with a safe prefix
-  const isAllowed = ALLOWED_COMMANDS.some(allowed => {
-    if (baseCommand === allowed) return true
+    // Check if command is in allowlist or starts with a safe prefix
+    const isAllowed = ALLOWED_COMMANDS.some(allowed => {
+      if (baseCommand === allowed) return true
 
-    // Windows command variations (e.g. 'ipconfig.exe')
-    if (baseCommand === allowed + '.exe') return true
+      // Windows command variations (e.g. 'ipconfig.exe')
+      if (baseCommand === allowed + '.exe') return true
 
-    // Allow commands that start with allowed commands (e.g., 'git status')
-    if (baseCommand.startsWith(allowed + ' ') || baseCommand.startsWith(allowed + '-')) return true
-    return false
-  })
+      // Allow commands that start with allowed commands (e.g., 'git status')
+      if (baseCommand.startsWith(allowed + ' ') || baseCommand.startsWith(allowed + '-')) return true
+      return false
+    })
 
-  if (!isAllowed) {
-    return { valid: false, error: `Command '${baseCommand}' is not in the allowed list` }
+    if (!isAllowed) {
+      return { valid: false, error: `Command '${baseCommand}' is not in the allowed list` }
+    }
   }
 
   return { valid: true }
@@ -119,10 +133,21 @@ export async function executeCommand(
       }
     }
 
+    // Some commands write to stderr but still succeed, or have non-zero exit with useful output
+    // Check if we have stdout output - if so, return it as success
+    if (error.stdout && error.stdout.trim()) {
+      console.log('[Bash] Command had error but produced output:', error.stdout.substring(0, 200))
+      return {
+        success: true,
+        output: error.stdout.trim()
+      }
+    }
+
     // Return stderr if available
     if (error.stderr) {
       return {
         success: false,
+        output: error.stderr.trim(),
         error: error.stderr
       }
     }

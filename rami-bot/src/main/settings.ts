@@ -383,6 +383,10 @@ class SettingsManager {
       merged.customBaseUrl = process.env.CUSTOM_BASE_URL
       console.log('[Settings] Using CUSTOM_BASE_URL from environment')
     }
+    if (process.env.GITHUB_TOKEN) {
+      merged.githubToken = process.env.GITHUB_TOKEN
+      console.log('[Settings] Using GITHUB_TOKEN from environment')
+    }
 
     this.settings = merged
     console.log('[Settings] Loaded settings')
@@ -422,13 +426,14 @@ class SettingsManager {
 
   getProviderConfig(provider: string) {
     // Check if it matches a custom config ID first
-    const customConfig = this.settings.llmConfigs?.find(c => c.id === provider)
+    const customConfig = this.settings.llmConfigs?.find(c => c.id === provider || c.name === provider)
     if (customConfig) {
       return {
         apiKey: customConfig.apiKey,
         baseUrl: customConfig.baseUrl || '',
         model: customConfig.model,
-        provider: customConfig.provider
+        provider: customConfig.provider,
+        id: customConfig.id
       }
     }
 
@@ -590,6 +595,10 @@ class SettingsManager {
     }
 
     return results
+  }
+
+  getEnabledConfigs(): LLMConfig[] {
+    return (this.settings.llmConfigs || []).filter(c => c.isEnabled && c.apiKey)
   }
 }
 

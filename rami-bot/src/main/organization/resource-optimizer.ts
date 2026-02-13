@@ -16,29 +16,34 @@ export class ResourceOptimizer {
     /**
      * Negotiate the best model for a task based on priority and complexity
      */
-    public async negotiateProvider(task: Task): Promise<'openai' | 'claude' | 'gemini'> {
+    public async negotiateProvider(task: Task): Promise<string> {
         const settings = settingsManager.getSettingsSync()
-        const hasClaude = !!settings.claudeApiKey || !!process.env.ANTHROPIC_API_KEY
-        const hasOpenAI = !!settings.openaiApiKey || !!process.env.OPENAI_API_KEY
-        // Google key might be in googleGeminiApiKey or googleApiKey or env
-        const hasGemini = !!settings.googleGeminiApiKey || !!settings.googleApiKey || !!process.env.GOOGLE_API_KEY
+        const enabledConfigs = settingsManager.getEnabledConfigs()
 
-        // Priority-based model selection
-        if ((task.priority === 'critical' || task.priority === 'high') && hasClaude) {
-            return 'claude' // Use top-tier (Sonnet 3.5) for critical tasks
+        // 1. If we have custom configs, check for a "Specialist" match
+        if (enabledConfigs.length > 1) {
+            const specialist = enabledConfigs.find(c =>
+                task.requiredSkills.some(skill => c.name.toLowerCase().includes(skill.toLowerCase()))
+            )
+            if (specialist) return specialist.id
         }
 
-        if (task.requiredSkills.length > 3 && hasOpenAI) {
-            return 'openai' // GPT-4o for complex multi-skill tasks
+        // 2. High Priority -> Prefer Claude if available
+        if (task.priority === 'critical' || task.priority === 'high') {
+            const bestClaude = enabledConfigs.find(c => c.provider === 'claude')
+            if (bestClaude) return bestClaude.id
+            if (settings.claudeApiKey) return 'claude'
         }
 
-        // Fallbacks based on availability
-        if (hasGemini) return 'gemini'
-        if (hasOpenAI) return 'openai'
-        if (hasClaude) return 'claude'
+        // 3. Multi-skill -> Prefer OpenAI if available
+        if (task.requiredSkills.length > 3) {
+            const bestOpenAI = enabledConfigs.find(c => c.provider === 'openai')
+            if (bestOpenAI) return bestOpenAI.id
+            if (settings.openaiApiKey) return 'openai'
+        }
 
-        // Default to Gemini if nothing else matches specific criteria (or if no keys, we fail later)
-        return 'gemini'
+        // 4. Fallback to current primary provider
+        return settings.llmProvider || 'claude'
     }
 
     /**

@@ -30,6 +30,7 @@ import TeamsPage from './components/platforms/TeamsPage'
 import MatrixPage from './components/platforms/MatrixPage'
 import IMessagePage from './components/platforms/IMessagePage'
 import SlackPage from './components/platforms/SlackPage'
+import { PanelRightClose } from 'lucide-react'
 
 function App() {
   const { i18n } = useTranslation()
@@ -431,17 +432,30 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar */}
-        {sidebarOpen && (
-          <Sidebar
-            currentAgentId={currentAgentId}
-            onAgentClick={() => setAgentsPanelOpen(true)}
-            onOpenIntegrations={() => setIntegrationsPanelOpen(true)}
-            onOpenAutomation={() => setAutomationPanelOpen(true)}
-            onOpenCanvas={handleOpenCanvas}
-            onNavigate={handleNavigate}
-          />
+        <div className={`transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+          {sidebarOpen && (
+            <Sidebar
+              currentAgentId={currentAgentId}
+              onAgentClick={() => setAgentsPanelOpen(true)}
+              onOpenIntegrations={() => setIntegrationsPanelOpen(true)}
+              onOpenAutomation={() => setAutomationPanelOpen(true)}
+              onOpenCanvas={handleOpenCanvas}
+              onNavigate={handleNavigate}
+            />
+          )}
+        </div>
+
+        {/* Floating Sidebar Toggle (Only when closed) */}
+        {!sidebarOpen && (
+          <button
+            onClick={handleToggleSidebar}
+            className="absolute top-4 left-4 z-40 p-2 bg-dark-800/80 hover:bg-primary-600 text-dark-300 hover:text-white rounded-lg border border-dark-600 shadow-lg backdrop-blur-md transition-all hover:scale-110 active:scale-95 flex items-center justify-center animate-in fade-in slide-in-from-left-4 duration-300"
+            title="Open Sidebar"
+          >
+            <PanelRightClose size={18} className="transform rotate-180" />
+          </button>
         )}
 
         {/* Main Area */}

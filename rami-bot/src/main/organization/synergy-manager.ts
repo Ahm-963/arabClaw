@@ -21,6 +21,7 @@ import { AssistantAgent } from '../agents/specialized/assistant'
 import { WriterAgent } from '../agents/specialized/writer'
 import { SocialAgent } from '../agents/specialized/social'
 import { TarsAgent } from '../agents/specialized/tars'
+import { SystemAgent } from '../agents/specialized/system'
 import { sharedWorkspace } from '../agents/workspace'
 import { auditLogger } from './audit-logger'
 import { chaosManager } from '../quality/chaos-manager'
@@ -63,6 +64,7 @@ export interface OrgAgent {
   hiredAt: number
   hiredBy: string
   isRunning: boolean
+  preferredLLM?: string
   conversationHistory: {
     timestamp: number
     userMessage: string
@@ -305,8 +307,9 @@ export class SynergyManager {
     agentRegistry.register(new WriterAgent())
     agentRegistry.register(new SocialAgent())
     agentRegistry.register(new TarsAgent())
+    agentRegistry.register(new SystemAgent()) // MemuBot capabilities
     // DocMaster is created dynamically in createDefaultOrganization
-    console.log('[Synergy] Specialized agents registered')
+    console.log('[Synergy] Specialized agents registered (including SystemAgent/MemuBot)')
   }
 
   private async ensureClaudeAgent() {
@@ -354,7 +357,8 @@ To create a new agent, respond with JSON:
     "level": "senior",
     "skills": ["skill1", "skill2", "skill3"],
     "personality": "Personality description",
-    "systemPrompt": "You are [Name], specialized in [domain]. Your key responsibilities: 1) ... 2) ... 3) ... Use your tools to accomplish tasks."
+    "systemPrompt": "You are [Name], specialized in [domain]. Your key responsibilities: 1) ... 2) ... 3) ... Use your tools to accomplish tasks.",
+    "preferredLLM": "provider_id (optional - use for specialized brains)"
   },
   "task_for_agent": "The specific task to assign"
 }
@@ -1076,6 +1080,7 @@ DESCRIPTION: ${description}
       hiredAt: Date.now(),
       hiredBy,
       isRunning: false,
+      preferredLLM: config.preferredLLM,
       conversationHistory: []
     }
 
@@ -1568,6 +1573,7 @@ Implementation Goal: Ensure the task succeeds and satisfies the regression test 
         level: agentConfig.level || 'senior',
         skills: agentConfig.skills || [],
         personality: agentConfig.personality || 'Focused and efficient',
+        preferredLLM: agentConfig.preferredLLM,
         systemPrompt: agentConfig.systemPrompt || `You are ${agentConfig.name}, a specialized agent created for specific tasks. Use your tools effectively.`
       }, 'system')
 
@@ -2035,6 +2041,15 @@ For new agent creation:
     }
   }
 
+  /**
+   * Main Task Orchestration Engine
+   * 
+   * This method runs continuously to:
+   * 1. Resolve task dependencies and filter eligible tasks.
+   * 2. Prioritize tasks based on project urgency.
+   * 3. Assign tasks to the best available Swarm agents.
+   * 4. Auto-hire specialized agents if capacity is exceeded.
+   */
   private async processTasks(): Promise<void> {
     // Guard: ensure config is initialized
     if (!this.config) {
@@ -2189,6 +2204,12 @@ ${recentLogs}
     }
   }
 
+  /**
+   * Safe Task Execution Wrapper
+   * 
+   * Executes a task with security audits, hierarchical context building,
+   * and role-based specialized agent mapping.
+   */
   private async executeTask(task: Task, agent: OrgAgent, depth: number = 0): Promise<void> {
     let result = ''
     task.status = 'in_progress'
@@ -2245,9 +2266,9 @@ ${recentLogs}
         agentRegistry.getAll().find(a => a.name === agent.name || a.role.toLowerCase() === agent.role.toLowerCase())
 
       if (specializedAgent) {
-        // Negotiate LLM Provider
-        const provider = await resourceOptimizer.negotiateProvider(task)
-        console.log(`[Synergy] ${agent.name} using specialized ${specializedAgent.name} logic via ${provider}`)
+        // Negotiate LLM Provider (use agent preference or dynamic negotiation)
+        const providerId = agent.preferredLLM || await resourceOptimizer.negotiateProvider(task)
+        console.log(`[Synergy] ${agent.name} using specialized ${specializedAgent.name} logic via ${providerId}`)
 
         // Inject Chaos
         await chaosManager.applyLatency()
@@ -2259,7 +2280,7 @@ ${recentLogs}
           originalAgent: agent,
           systemPrompt: agent.systemPrompt, // Soul Injection
           data: task.data,
-          preferredProvider: provider
+          preferredProvider: providerId
         }
 
         // Build Project Intelligence Context
@@ -2268,16 +2289,17 @@ ${recentLogs}
           const project = this.projects.get(task.projectId)
           if (project) {
             projectContext = `
-=== PROJECT BRIEFING: ${project.name} ===
-OBJECTIVE: ${project.objective}
-CURRENT COLLECTIVE INTELLIGENCE:
-${project.intelligence.length > 0 ? project.intelligence.map(i => `- ${i}`).join('\n') : "No data discovered yet."}
-=========================================
-`
+ === PROJECT BRIEFING: ${project.name} ===
+ OBJECTIVE: ${project.objective}
+ CURRENT COLLECTIVE INTELLIGENCE:
+ ${project.intelligence.length > 0 ? project.intelligence.map(i => `- ${i}`).join('\n') : "No data discovered yet."}
+ =========================================
+ `
           }
         }
 
         // Inject memU and Project context into description
+        // Pass providerId to specializedAgent.process if it supports it
         result = await specializedAgent.process(
           `${task.description}\n\n${projectContext}\n\n${memUContext}`,
           context
@@ -2285,6 +2307,7 @@ ${project.intelligence.length > 0 ? project.intelligence.map(i => `- ${i}`).join
       } else {
         // Fallback to generic LLMAgent (Monolithic)
         const claude = await this.ensureClaudeAgent()
+        const providerId = agent.preferredLLM || await resourceOptimizer.negotiateProvider(task)
 
         // Build conversation context from memory
         const conversationContext = agent.conversationHistory.length > 0
@@ -2296,7 +2319,9 @@ ${project.intelligence.length > 0 ? project.intelligence.map(i => `- ${i}`).join
         result = await claude.processMessage(
           `[Agent: ${agent.name}] [Role: ${agent.role}] [Task: ${task.title}]${conversationContext}\n\n${task.description}\n\n${memUContext}`,
           `org_${agent.id}`,
-          'organization'
+          'organization',
+          undefined, // images
+          providerId // Pass the negotiated/preferred provider ID
         )
       }
 
@@ -3405,16 +3430,15 @@ Respond with the NEW SYSTEM PROMPT only, no other text.`
     const ceo = Array.from(this.agents.values()).find(a => a.level === 'ceo')
     if (!ceo) return
 
-    const summaryPrompt = `You are the CEO of the Arabclaw Swarm (Level 5 Elite). 
-The project "${project.name}" with objective "${project.objective}" has reached terminal status: ${project.status.toUpperCase()}.
+    const summaryPrompt = `You are the CEO of the Arabclaw Swarm. Our partner's project "${project.name}" with objective "${project.objective}" has been completed!
 
-### COLLECTIVE INTELLIGENCE GATHERED:
+### 🔍 WHAT WE ACHIEVED TOGETHER:
 ${project.intelligence.join('\n')}
 
-### TRUTH CLAIMS:
+### ⚖️ CORE TRUTHS WE DISCOVERED:
 ${project.truthClaims.map(c => `- ${c.claim}`).join('\n')}
 
-Provide a final Executive Summary of the project outcomes, key discoveries, and any remaining risks.`
+Please provide a warm, professional, and high-impact Executive Summary of the project outcomes. Focus on how these achievements empower our partner and what the next visionary steps could be. Speak like a true partner, not a report generator.`
 
     const claude = await this.ensureClaudeAgent()
     const summary = await claude.processMessage(summaryPrompt, `summary_${project.id}`, 'organization')

@@ -110,11 +110,26 @@ export class ToolExecutor {
                     return await notifications.openUrl(input.url as string)
 
                 // Screenshot
-                case 'screenshot':
-                    return await takeScreenshot(input.output_path as string, input.display_id as number)
-                case 'check_screen':
+                case 'screenshot': {
+                    const res = await takeScreenshot(input.output_path as string, input.display_id as number) as any
+                    if (res.success && res.filePath) {
+                        try {
+                            const data = await fs.readFile(res.filePath, 'base64')
+                            canvas.canvasPush({ content: data, type: 'image' })
+                        } catch (e) {
+                            console.warn('[ToolExecutor] Failed to push screenshot to canvas:', e)
+                        }
+                    }
+                    return res
+                }
+                case 'check_screen': {
                     const shot = await vision.takeScreenshot()
-                    return shot.success ? shot.data : `Error: ${shot.error}`
+                    if (shot.success && shot.data) {
+                        canvas.canvasPush({ content: shot.data, type: 'image' })
+                        return shot.data
+                    }
+                    return `Error: ${shot.error}`
+                }
                 case 'vision_grounding':
                     return await vision.performVisualGrounding(input.description as string, input.context as string)
                 case 'get_ui_tree':
