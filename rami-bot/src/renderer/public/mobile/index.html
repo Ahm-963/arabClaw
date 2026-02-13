@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rami Bot Remote</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --primary-color: #3b82f6;
+            --secondary-color: #262626;
+            --accent-color: #10b981;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: var(--secondary-color);
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .message.bot {
+            background-color: var(--secondary-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+        .message.user {
+            background-color: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        #input-area {
+            background-color: var(--secondary-color);
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex: 1;
+            background-color: #333;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 15px;
+            color: white;
+            font-size: 16px;
+        }
+        input:focus {
+            outline: none;
+            background-color: #404040;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        #controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px 15px;
+            background-color: var(--secondary-color);
+            border-top: 1px solid #333;
+        }
+        .control-btn {
+            background-color: #333;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            color: #aaa;
+            width: auto;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .control-btn.active {
+            background-color: var(--accent-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <span>Rami Bot Remote</span>
+        <div class="status-dot"></div>
+    </header>
+
+    <div id="chat-container">
+        <div class="message bot">Hello! I am Rami Bot. connected remotely.</div>
+    </div>
+
+    <div id="controls">
+        <div class="control-btn" onclick="sendCommand('stop_voice')">
+            <span>🔇</span>
+            <span>Stop Voice</span>
+        </div>
+        <div class="control-btn" onclick="sendCommand('restart')">
+            <span>🔄</span>
+            <span>Restart Agent</span>
+        </div>
+    </div>
+
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="Type a message...">
+        <button onclick="sendMessage()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+        </button>
+    </div>
+
+    <script>
+        const input = document.getElementById('message-input');
+        const chatContainer = document.getElementById('chat-container');
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            try {
+                await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, sender: 'mobile' })
+                });
+            } catch (e) {
+                console.error('Failed to send', e);
+                addMessage('Failed to send message', 'bot');
+            }
+        }
+
+        async function sendCommand(cmd) {
+            try {
+                await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd })
+                });
+            } catch (e) {
+                console.error('Command failed', e);
+            }
+        }
+
+        function addMessage(text, sender) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}`;
+            div.textContent = text;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Poll for updates (simplified for now, ideally use WebSocket)
+        // setInterval(async () => {
+        //     const res = await fetch('/api/status');
+        //     const data = await res.json();
+        //     // Update status UI
+        // }, 5000);
+    </script>
+</body>
+</html>

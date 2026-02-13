@@ -1,0 +1,230 @@
+// Temporary file to add methods - will be inserted into synergy-manager
+// These are the findAgentsBySkills, requestAgentCollaboration, and checkSkillAcquisition methods
+
+/**
+ * Find agents with specific skills
+ */
+findAgentsBySkills(requiredSkills: string[]): OrgAgent[] {
+  const agents: OrgAgent[] = []
+  
+  for (const agent of this.agents.values()) {
+    if (agent.status === 'offline') continue
+    
+    const skillMatch = requiredSkills.filter(s =>
+      agent.skills.some(as => as.toLowerCase().includes(s.toLowerCase()))
+    ).length
+    
+    if (skillMatch > 0) {
+      agents.push(agent)
+    }
+  }
+  
+  // Sort by skill match count
+  return agents.sort((a, b) => {
+    const aMatch = requiredSkills.filter(s => a.skills.some(as => as.toLowerCase().includes(s.toLowerCase()))).length
+    const bMatch = requiredSkills.filter(s => b.skills.some(as => as.toLowerCase().includes(s.toLowerCase()))).length
+    return bMatch - aMatch
+  })
+}
+
+/**
+ * Get all available skills across all agents
+ */
+getAvailableSkills(): string[] {
+  const skills = new Set<string>()
+  for (const agent of this.agents.values()) {
+    agent.skills.forEach(s => skills.add(s))
+  }
+  return Array.from(skills)
+}
+
+/**
+ * Agent requests collaboration from other agents
+ * Records history and uses learning for agent selection
+ */
+async requestAgentCollaboration(
+  requestingAgentId: string,
+  requiredSkills: string[],
+  taskDescription: string,
+  depth: number = 0
+): Promise<{ success: boolean; result?: string; error?: string }> {
+  // Safety: prevent infinite loops
+  if (depth >= 3) {
+    return { success: false, error: 'Maximum collaboration depth reached' }
+  }
+
+  const requestingAgent = this.agents.get(requestingAgentId)
+  if (!requestingAgent) {
+    return { success: false, error: 'Requesting agent not found' }
+  }
+
+  console.log(`[Synergy] ${requestingAgent.name} requesting collaboration for: ${taskDescription}`)
+
+  // Find suitable agents
+  const candidates = this.findAgentsBySkills(requiredSkills)
+    .filter(a => a.id !== requestingAgentId && a.status === 'idle')
+
+  if (candidates.length === 0) {
+    return { success: false, error: 'No available agents with required skills' }
+  }
+
+  // LEARNING: Check history to find best collaborator
+  const candidateIds = candidates.map(c => c.id)
+  const bestHelperId = this.collaborationHistory.findBestHelper(requestingAgentId, candidateIds)
+  
+  const helperAgent = bestHelperId 
+    ? this.agents.get(bestHelperId) || candidates[0]
+    : candidates[0]
+
+  console.log(`[Synergy] Selected ${helperAgent.name} (${bestHelperId ? 'from history' : 'by skills'})`)
+
+  // Track start time for duration
+  const startTime = Date.now()
+  const collaborationId = uuidv4()
+
+  // Notify chat
+  appEvents.emit('org:task_update', {
+    type: 'collaboration',
+    agentId: requestingAgent.id,
+    agentName: requestingAgent.name,
+    message: `Requesting collaboration from **${helperAgent.name}** for: ${taskDescription}`
+  })
+
+  // Execute sub-collaboration with depth tracking
+  try {
+    const claude = await this.ensureClaudeAgent()
+    
+    // Security audit
+    const audit = await this.securityAudit(taskDescription, `Collaboration request from ${requestingAgent.name}`)
+    if (!audit.safe) {
+      const error = `Security check failed: ${audit.issues.join(', ')}`
+      
+      // Record failed collaboration
+      await this.collaborationHistory.recordCollaboration({
+        id: collaborationId,
+        timestamp: startTime,
+        requestorAgentId: requestingAgent.id,
+        requestorAgentName: requestingAgent.name,
+        helperAgentId: helperAgent.id,
+        helperAgentName: helperAgent.name,
+        requiredSkills,
+        taskDescription,
+        result: error,
+        success: false,
+        duration: Date.now() - startTime,
+        depth
+      })
+      
+      return { success: false, error }
+    }
+
+    // Notify helper agent starting
+    appEvents.emit('org:task_update', {
+      type: 'start',
+      agentId: helperAgent.id,
+      agentName: helperAgent.name,
+      message: `Assisting **${requestingAgent.name}**: ${taskDescription}`
+    })
+
+    // Execute with helper agent
+    const result = await claude.processMessage(
+      `[Agent: ${helperAgent.name}] [Role: ${helperAgent.role}] [Assisting: ${requestingAgent.name}]\n\n${taskDescription}`,
+      `org_collab_${helperAgent.id}_${depth}`,
+      'organization'
+    )
+
+    const duration = Date.now() - startTime
+
+    // Record successful collaboration
+    await this.collaborationHistory.recordCollaboration({
+      id: collaborationId,
+      timestamp: startTime,
+      requestorAgentId: requestingAgent.id,
+      requestorAgentName: requestingAgent.name,
+      helperAgentId: helperAgent.id,
+      helperAgentName: helperAgent.name,
+      requiredSkills,
+      taskDescription,
+      result,
+      success: true,
+      duration,
+      depth
+    })
+
+    // Check for dynamic skill acquisition
+    await this.checkSkillAcquisition(requestingAgent.id, helperAgent.id, requiredSkills)
+
+    // Notify completion
+    appEvents.emit('org:task_update', {
+      type: 'result',
+      agentId: helperAgent.id,
+      agentName: helperAgent.name,
+      message: `Completed assistance for **${requestingAgent.name}**\n\n${result}`
+    })
+
+    return { success: true, result }
+
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    
+    // Record failed collaboration
+    await this.collaborationHistory.recordCollaboration({
+      id: collaborationId,
+      timestamp: startTime,
+      requestorAgentId: requestingAgent.id,
+      requestorAgentName: requestingAgent.name,
+      helperAgentId: helperAgent.id,
+      helperAgentName: helperAgent.name,
+      requiredSkills,
+      taskDescription,
+      result: error.message,
+      success: false,
+      duration,
+      depth
+    })
+
+    appEvents.emit('org:task_update', {
+      type: 'error',
+      agentId: helperAgent.id,
+      agentName: helperAgent.name,
+      message: `Failed to assist **${requestingAgent.name}**: ${error.message}`
+    })
+    
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Check if agent should acquire skills based on collaboration history
+ */
+private async checkSkillAcquisition(requestorId: string, helperId: string, skills: string[]): Promise<void> {
+  const metrics = this.collaborationHistory.getPairMetrics(requestorId, helperId)
+  
+  // If requestor has collaborated 5+ times with helper on same skills with high success rate
+  if (metrics && metrics.totalCollaborations >= 5 && metrics.successRate >= 80) {
+    const requestor = this.agents.get(requestorId)
+    if (!requestor) return
+
+    for (const skill of skills) {
+      // Check if requestor already has this skill
+      const hasSkill = requestor.skills.some(s => s.toLowerCase().includes(skill.toLowerCase()))
+      
+      if (!hasSkill) {
+        // Add skill
+        requestor.skills.push(skill)
+        console.log(`[Synergy] ${requestor.name} acquired skill: ${skill} (via collaboration experience)`)
+
+        // Notify user
+        appEvents.emit('org:task_update', {
+          type: 'info',
+          agentId: requestor.id,
+          agentName: requestor.name,
+          message: `🎓 **Skill Acquired**: ${requestor.name} has learned **${skill}** through ${metrics.totalCollaborations} successful collaborations!`
+        })
+
+        // Persist
+        await this.saveState()
+      }
+    }
+  }
+}

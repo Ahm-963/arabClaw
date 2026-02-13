@@ -1,0 +1,100 @@
+{
+  "app": {
+    "name": "Rami Bot",
+    "description": "AI Assistant for messaging platforms"
+  },
+  "sidebar": {
+    "telegram": "Telegram",
+    "discord": "Discord",
+    "whatsapp": "WhatsApp",
+    "slack": "Slack",
+    "signal": "Signal",
+    "teams": "Microsoft Teams",
+    "matrix": "Matrix",
+    "imessage": "iMessage",
+    "services": "Services",
+    "settings": "Settings"
+  },
+  "chat": {
+    "placeholder": "Type a message...",
+    "send": "Send",
+    "typing": "Typing...",
+    "thinking": "Thinking...",
+    "processing": "Processing...",
+    "toolUse": "Using tool: {{tool}}",
+    "noMessages": "No messages yet. Start a conversation!",
+    "connectionRequired": "Connect to a platform to start chatting"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "apiKey": "API Key",
+    "model": "Model",
+    "save": "Save",
+    "reset": "Reset",
+    "saved": "Settings saved!",
+    "llmProvider": "LLM Provider",
+    "claude": "Claude (Anthropic)",
+    "openai": "OpenAI (GPT)",
+    "gemini": "Google Gemini",
+    "nanobanna": "NanoBanna",
+    "minimax": "MiniMax",
+    "custom": "Custom Provider",
+    "nanoBannaModel": "NanoBanna Model",
+    "telegramToken": "Telegram Bot Token",
+    "telegramGroups": "Telegram Groups",
+    "discordToken": "Discord Bot Token",
+    "discordDmPolicy": "Discord DM Policy",
+    "discordPairing": "Pairing Required",
+    "discordOpen": "Open (Anyone)",
+    "slackToken": "Slack Bot Token",
+    "slackAppToken": "Slack App Token",
+    "whatsappEnabled": "Enable WhatsApp",
+    "signalEnabled": "Enable Signal",
+    "teamsEnabled": "Enable Microsoft Teams",
+    "matrixEnabled": "Enable Matrix",
+    "imessageEnabled": "Enable iMessage",
+    "canvasEnabled": "Enable Canvas (Visual Workspace)",
+    "skillsEnabled": "Enable Skills Platform",
+    "sessionsEnabled": "Enable Agent Sessions",
+    "tavilyKey": "Tavily Search API Key",
+    "elevenLabsKey": "ElevenLabs API Key",
+    "maxTokens": "Max Tokens",
+    "temperature": "Temperature",
+    "systemPrompt": "System Prompt",
+    "appearance": "Appearance",
+    "connections": "Connections",
+    "features": "Features",
+    "advanced": "Advanced"
+  },
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting...",
+    "error": "Error"
+  },
+  "services": {
+    "title": "Background Services",
+    "create": "Create Service",
+    "start": "Start",
+    "stop": "Stop",
+    "delete": "Delete",
+    "running": "Running",
+    "stopped": "Stopped",
+    "noServices": "No services created yet",
+    "confirmDelete": "Are you sure you want to delete this service?"
+  },
+  "languages": {
+    "en": "English",
+    "ar": "العربية",
+    "he": "עברית"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "رامي بوت",
+    "description": "مساعد ذكاء اصطناعي لمنصات المراسلة"
+  },
+  "sidebar": {
+    "telegram": "تيليجرام",
+    "discord": "ديسكورد",
+    "whatsapp": "واتساب",
+    "slack": "سلاك",
+    "services": "الخدمات",
+    "settings": "الإعدادات"
+  },
+  "chat": {
+    "placeholder": "اكتب رسالة...",
+    "send": "إرسال",
+    "typing": "يكتب...",
+    "thinking": "يفكر...",
+    "processing": "جاري المعالجة...",
+    "toolUse": "يستخدم أداة: {{tool}}",
+    "noMessages": "لا توجد رسائل بعد. ابدأ محادثة!",
+    "connectionRequired": "اتصل بمنصة لبدء المحادثة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "language": "اللغة",
+    "apiKey": "مفتاح API",
+    "model": "النموذج",
+    "save": "حفظ",
+    "reset": "إعادة تعيين",
+    "saved": "تم حفظ الإعدادات!",
+    "llmProvider": "مزود الذكاء الاصطناعي",
+    "claude": "كلود (Anthropic)",
+    "minimax": "ميني ماكس",
+    "custom": "مزود مخصص",
+    "telegramToken": "رمز بوت تيليجرام",
+    "tavilyKey": "مفتاح Tavily للبحث",
+    "maxTokens": "الحد الأقصى للرموز",
+    "temperature": "درجة الحرارة",
+    "systemPrompt": "موجه النظام",
+    "appearance": "المظهر",
+    "connections": "الاتصالات",
+    "advanced": "متقدم"
+  },
+  "status": {
+    "connected": "متصل",
+    "disconnected": "غير متصل",
+    "connecting": "جاري الاتصال...",
+    "error": "خطأ"
+  },
+  "services": {
+    "title": "الخدمات الخلفية",
+    "create": "إنشاء خدمة",
+    "start": "تشغيل",
+    "stop": "إيقاف",
+    "delete": "حذف",
+    "running": "قيد التشغيل",
+    "stopped": "متوقف",
+    "noServices": "لم يتم إنشاء خدمات بعد",
+    "confirmDelete": "هل أنت متأكد من حذف هذه الخدمة؟"
+  },
+  "languages": {
+    "en": "English",
+    "ar": "العربية",
+    "he": "עברית"
+  },
+  "common": {
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "close": "إغلاق",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجاح"
+  }
+}

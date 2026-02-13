@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "רמי בוט",
+    "description": "עוזר בינה מלאכותית לפלטפורמות הודעות"
+  },
+  "sidebar": {
+    "telegram": "טלגרם",
+    "discord": "דיסקורד",
+    "whatsapp": "וואטסאפ",
+    "slack": "סלאק",
+    "services": "שירותים",
+    "settings": "הגדרות"
+  },
+  "chat": {
+    "placeholder": "הקלד הודעה...",
+    "send": "שלח",
+    "typing": "מקליד...",
+    "thinking": "חושב...",
+    "processing": "מעבד...",
+    "toolUse": "משתמש בכלי: {{tool}}",
+    "noMessages": "אין הודעות עדיין. התחל שיחה!",
+    "connectionRequired": "התחבר לפלטפורמה כדי להתחיל לשוחח"
+  },
+  "settings": {
+    "title": "הגדרות",
+    "language": "שפה",
+    "apiKey": "מפתח API",
+    "model": "מודל",
+    "save": "שמור",
+    "reset": "אפס",
+    "saved": "ההגדרות נשמרו!",
+    "llmProvider": "ספק AI",
+    "claude": "קלוד (Anthropic)",
+    "minimax": "מיני מקס",
+    "custom": "ספק מותאם אישית",
+    "telegramToken": "טוקן בוט טלגרם",
+    "tavilyKey": "מפתח חיפוש Tavily",
+    "maxTokens": "מקסימום טוקנים",
+    "temperature": "טמפרטורה",
+    "systemPrompt": "פרומפט מערכת",
+    "appearance": "מראה",
+    "connections": "חיבורים",
+    "advanced": "מתקדם"
+  },
+  "status": {
+    "connected": "מחובר",
+    "disconnected": "מנותק",
+    "connecting": "מתחבר...",
+    "error": "שגיאה"
+  },
+  "services": {
+    "title": "שירותי רקע",
+    "create": "צור שירות",
+    "start": "התחל",
+    "stop": "עצור",
+    "delete": "מחק",
+    "running": "פועל",
+    "stopped": "מופסק",
+    "noServices": "עדיין לא נוצרו שירותים",
+    "confirmDelete": "האם אתה בטוח שברצונך למחוק שירות זה?"
+  },
+  "languages": {
+    "en": "English",
+    "ar": "العربية",
+    "he": "עברית"
+  },
+  "common": {
+    "cancel": "ביטול",
+    "confirm": "אישור",
+    "close": "סגור",
+    "loading": "טוען...",
+    "error": "שגיאה",
+    "success": "הצלחה"
+  }
+}

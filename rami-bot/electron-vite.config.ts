@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    ssr: {
+      noExternal: ['uuid']
+    },
     build: {
       rollupOptions: {
         input: {
@@ -14,7 +16,9 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    ssr: {
+      noExternal: ['uuid']
+    },
     build: {
       rollupOptions: {
         input: {
