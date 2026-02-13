@@ -393,12 +393,12 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('imessage:getStatus', () => imessageBot.getStatus())
 
-  // AI Agent
-  ipcMain.handle('agent:process', async (_, message: string, chatId: string, platform: string) => {
+  // AI Agent (Centralized LLM Gateway)
+  ipcMain.handle('agent:process', async (_, message: string, chatId: string, platform: string, providerId?: string) => {
     if (!claudeAgent) {
       throw new Error('Claude Agent not initialized')
     }
-    return await claudeAgent.processMessage(message, chatId, platform)
+    return await claudeAgent.processMessage(message, chatId, platform, undefined, providerId)
   })
 
   // Tools
@@ -640,9 +640,11 @@ function setupIpcHandlers(): void {
       personality: agent.personality,
       systemPrompt: agent.systemPrompt,
       skills: agent.skills,
+      preferredLLM: agent.preferredLLM,
       color: getAgentColor(agent.name),
       avatar: getAgentAvatar(agent.name),
       isActive: agent.status !== 'offline',
+      isRunning: agent.isRunning,
       createdAt: agent.hiredAt,
       lastUsed: agent.hiredAt
     }))
@@ -1038,6 +1040,7 @@ function setupIpcHandlers(): void {
         skills: config.capabilities || config.skills || [],
         personality: config.personality || 'Professional and efficient',
         systemPrompt: config.systemPrompt || `You are ${config.name}, a specialized agent created for specific tasks.`,
+        preferredLLM: config.preferredLLM
       }, 'user')
 
       console.log('[Agents] Agent created successfully:', agent.id)
@@ -1060,6 +1063,22 @@ function setupIpcHandlers(): void {
         success: false,
         error: error.message || 'Failed to create agent'
       }
+    }
+  })
+
+  ipcMain.handle('agent:update', async (_event, agentData: any) => {
+    try {
+      if (!synergyManager) return { success: false, error: 'Synergy manager not initialized' }
+
+      const success = await synergyManager.updateAgent(agentData)
+      if (success) {
+        console.log('[Agents] Agent updated successfully:', agentData.id)
+        appEvents.emit('agent:updated', { agentId: agentData.id })
+      }
+      return { success }
+    } catch (error: any) {
+      console.error('[Agents] Failed to update agent:', error.message)
+      return { success: false, error: error.message }
     }
   })
 

@@ -47,7 +47,7 @@ interface BackgroundTask {
 export class SystemAgent extends BaseAgent {
     public static readonly AGENT_ID = 'system'
     public static readonly AGENT_NAME = 'System Agent (MemuBot)'
-    
+
     private services: Map<string, MemuService> = new Map()
     private tasks: Map<string, BackgroundTask> = new Map()
     private eventBus: EventEmitter = new EventEmitter()
@@ -61,7 +61,7 @@ export class SystemAgent extends BaseAgent {
             'system' as AgentRole,
             ['system', 'automation', 'monitoring', 'services', 'scheduling', 'notifications']
         )
-        
+
         // Default services directory
         this.servicesDir = path.join(process.env.APPDATA || '', 'rami-bot', 'services')
     }
@@ -99,22 +99,22 @@ export class SystemAgent extends BaseAgent {
                 const result = await this.handleCreateService(params)
                 return result.output
             }
-            
+
             if (taskLower.includes('start service')) {
                 const result = await this.handleStartService(params)
                 return result.output
             }
-            
+
             if (taskLower.includes('stop service')) {
                 const result = await this.handleStopService(params)
                 return result.output
             }
-            
+
             if (taskLower.includes('list service')) {
                 const result = await this.handleListServices()
                 return result.output
             }
-            
+
             if (taskLower.includes('delete service')) {
                 const result = await this.handleDeleteService(params)
                 return result.output
@@ -125,7 +125,7 @@ export class SystemAgent extends BaseAgent {
                 const result = await this.handleScheduleTask(params)
                 return result.output
             }
-            
+
             if (taskLower.includes('cancel task')) {
                 const result = await this.handleCancelTask(params)
                 return result.output
@@ -136,12 +136,12 @@ export class SystemAgent extends BaseAgent {
                 const result = await this.getSystemInfo()
                 return result.output
             }
-            
+
             if (taskLower.includes('process') && taskLower.includes('list')) {
                 const result = await this.listProcesses()
                 return result.output
             }
-            
+
             if (taskLower.includes('kill process') || taskLower.includes('terminate')) {
                 const result = await this.killProcess(params)
                 return result.output
@@ -165,22 +165,44 @@ export class SystemAgent extends BaseAgent {
                 return result.output
             }
 
-            // Use LLM for complex tasks
-            const systemPrompt = `You are the System Agent with MemuBot capabilities.
-You help with:
-- Background service management (create, start, stop, list, delete services)
-- Task scheduling (schedule recurring tasks, cancel tasks)
-- System monitoring (system info, list processes, kill processes)
-- File watching (monitor file changes)
-- Notifications (send notifications to various platforms)
-- Command execution (run shell commands)
+            // Use LLM for complex tasks with GUI/OS automation capabilities
+            let images: string[] = []
+            if (taskLower.includes('screen') || taskLower.includes('click') || taskLower.includes('type') || taskLower.includes('gui')) {
+                try {
+                    const { takeScreenshot } = await import('../../tools/vision')
+                    const shot = await takeScreenshot()
+                    if (shot.success && shot.data) {
+                        images.push(shot.data)
+                    }
+                } catch (e) {
+                    console.warn('[SystemAgent] Failed to take auto-screenshot for context:', e)
+                }
+            }
+
+            const systemPrompt = `You are MemuBot, the elite System Administrator and Action Doer. 
+Your role is to manage and automate this computer with extreme efficiency.
+
+### 🏛️ STRATEGIC DOCTRINE: "OBSERVE-GROUND-ACT-VERIFY"
+When interacting with the GUI, follow this scientific rigor:
+1. OBSERVE: You have been provided with a fresh screenshot.
+2. ANALYZE: Use 'get_ui_tree' to understand the accessibility structure.
+3. GROUND: Use 'vision_grounding' to find coordinates for visual elements.
+4. ACT: Perform precise mouse/keyboard actions.
+5. VERIFY: Capturing another screenshot to confirm success.
+
+### 🛠️ CORE CAPABILITIES:
+- Background services (create, start, stop, list)
+- OS Task scheduling
+- Process management
+- GUI Automation (Mouse/Keyboard/Vision)
+- System monitoring
 
 Current services: ${JSON.stringify(Array.from(this.services.values()).map(s => ({ id: s.id, name: s.name, status: s.status })))}
 Current tasks: ${this.tasks.size} running
 
-Respond helpfully and suggest what actions you can take.`
+Respond helpfully and execute actions decisively.`
 
-            return await this.callLLM(systemPrompt, message, undefined, false)
+            return await this.callLLM(systemPrompt, message, undefined, true, images)
 
         } catch (error: any) {
             return `System operation failed: ${error.message}`
@@ -269,7 +291,7 @@ Respond helpfully and suggest what actions you can take.`
 
         try {
             // Start the service
-            const command = service.runtime === 'python' 
+            const command = service.runtime === 'python'
                 ? `python "${entryPath}"`
                 : `node "${entryPath}"`
 
@@ -360,7 +382,7 @@ Respond helpfully and suggest what actions you can take.`
             nextRun: s.nextRun
         }))
 
-        const output = serviceList.length === 0 
+        const output = serviceList.length === 0
             ? 'No services found'
             : `Found ${serviceList.length} services:\n${serviceList.map(s => `  - ${s.name} (${s.id}): ${s.status}`).join('\n')}`
 
@@ -422,7 +444,7 @@ Respond helpfully and suggest what actions you can take.`
 
         const taskId = `task_${Date.now()}`
         const intervalMs = this.parseInterval(interval)
-        
+
         const task: BackgroundTask = {
             id: taskId,
             name,
@@ -551,7 +573,7 @@ Tasks: ${info.tasksRunning} running`,
 
         try {
             const command = process.platform === 'win32'
-                ? pid 
+                ? pid
                     ? `taskkill /PID ${pid} /F`
                     : `taskkill /IM "${name}" /F`
                 : pid
@@ -694,7 +716,7 @@ Tasks: ${info.tasksRunning} running`,
         if (!service.schedule) return
 
         const intervalMs = this.parseCronToMs(service.schedule)
-        
+
         const task: BackgroundTask = {
             id: service.id,
             name: service.name,
@@ -702,10 +724,10 @@ Tasks: ${info.tasksRunning} running`,
                 // Execute the service
                 const serviceDir = path.join(this.servicesDir, service.id)
                 const entryFile = service.runtime === 'python' ? 'main.py' : 'index.js'
-                const command = service.runtime === 'python' 
+                const command = service.runtime === 'python'
                     ? `python "${path.join(serviceDir, entryFile)}"`
                     : `node "${path.join(serviceDir, entryFile)}"`
-                
+
                 try {
                     await execAsync(command, {
                         cwd: serviceDir,

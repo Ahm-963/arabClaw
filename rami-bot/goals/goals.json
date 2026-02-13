@@ -1,0 +1,23 @@
+[
+  {
+    "id": "goal_1770662473905",
+    "description": "Verify Cognitive Skills Implementation",
+    "subtasks": [
+      {
+        "id": "task_1770662473906_h5fuc",
+        "description": "Test Memory",
+        "status": "pending",
+        "priority": 1
+      },
+      {
+        "id": "task_1770662473906_7st1j",
+        "description": "Test Goals",
+        "status": "pending",
+        "priority": 1
+      }
+    ],
+    "status": "active",
+    "createdAt": 1770662473905,
+    "updatedAt": 1770662473906
+  }
+]

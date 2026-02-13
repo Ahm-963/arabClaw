@@ -1,5 +1,69 @@
-"node_modules/"  
-"dist/"  
-"out/"  
-".env"  
-"temp/"  
+# Dependencies
+node_modules/
+node_modules
+
+# Build outputs
+dist/
+out/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temp files
+temp/
+tmp/
+*.tmp
+
+# Test results
+test-results*.json
+test_output*.txt
+test_results.txt
+test_error*.txt
+test-output.txt
+test_fail.txt
+
+# Build logs and errors
+build_log.txt
+build_error.txt
+tsc_log.txt
+tsc_errors*.log
+tsc_output*.txt
+tsc_output_full.txt
+typecheck_error*.log
+typecheck_errors*.txt
+full_errors*.log
+core_test_error.txt
+
+# Build info
+builder_log.txt
+build_win_log_*.txt
+
+# Verification scripts
+verify*.js
+verify*.ts
+simulated-test.ts
+check-syntax.js
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Image assets that shouldn't be in git
+kayak_*.png
+
+# Misc
+*.bak
+*.orig

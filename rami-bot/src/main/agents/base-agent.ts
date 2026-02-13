@@ -69,20 +69,27 @@ export abstract class BaseAgent implements Agent {
             }
         }
 
-        let lastError: any = null
+        const errors: string[] = []
+        let successfulResponse: string | null = null
 
         for (const targetProvider of providersToTry) {
             try {
                 console.log(`[BaseAgent] ${this.name} attempting call via ${targetProvider}...`)
-                return await this.executeLLMCall(targetProvider, systemPrompt, userMessage, includeTools, images)
+                successfulResponse = await this.executeLLMCall(targetProvider, systemPrompt, userMessage, includeTools, images)
+                break
             } catch (error: any) {
                 console.warn(`[BaseAgent] Provider ${targetProvider} failed for ${this.name}:`, error.message)
-                lastError = error
+                errors.push(`${targetProvider}: ${error.message}`)
                 // Continue to next provider
             }
         }
 
-        return `Error: All LLM providers failed for ${this.name}. Last error: ${lastError?.message || 'Unknown error'}`
+        if (successfulResponse !== null) {
+            return successfulResponse
+        }
+
+        const combinedErrors = errors.join(' | ')
+        return `Error: All LLM providers failed for ${this.name}. Detailed errors: ${combinedErrors}. Please check your API keys and credits.`
     }
 
     private async executeLLMCall(provider: string, systemPrompt: string, userMessage: string, includeTools: boolean, images?: any[]): Promise<string> {

@@ -308,7 +308,7 @@ Now, talk to your partner. Be real, be human, and get things done.`
             }
 
             let finalResponse = ''
-            let lastError: any = null
+            const errors: string[] = []
             let successfulProvider = ''
 
             for (const providerId of providersToTry) {
@@ -318,6 +318,7 @@ Now, talk to your partner. Be real, be human, and get things done.`
 
                     // Skip if no API key
                     if (!currentConfig.apiKey && currentConfig.provider !== 'custom') {
+                        errors.push(`${providerId}: API key missing`)
                         continue
                     }
 
@@ -337,20 +338,20 @@ Now, talk to your partner. Be real, be human, and get things done.`
                     }
 
                     // If we got here, it succeeded!
-                    lastError = null
                     successfulProvider = providerId
                     console.log(`[Agent] Successful response from ${providerId}`)
                     break
 
                 } catch (error: any) {
                     console.warn(`[Agent] Provider ${providerId} failed:`, error.message)
-                    lastError = error
+                    errors.push(`${providerId}: ${error.message}`)
                     // Continue to next provider
                 }
             }
 
-            if (lastError) {
-                throw new Error(`All LLM providers failed. Last error: ${lastError.message}`)
+            if (!successfulProvider) {
+                const combinedErrors = errors.join(' | ')
+                throw new Error(`All LLM providers failed. Detailed errors: ${combinedErrors}. Please check your API keys and credits in settings or .env file.`)
             }
 
             // Save assistant response handling is done inside specific provider methods or here?

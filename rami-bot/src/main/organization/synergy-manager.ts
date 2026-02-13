@@ -287,6 +287,23 @@ export class SynergyManager {
       if (this.agents.size === 0) {
         console.log('[Synergy] No agents found, creating default organization...')
         await this.createDefaultOrganization()
+      } else {
+        // Migration: Ensure System (Memubot) agent exists if organization was created before its addition
+        if (!this.agents.has('system')) {
+          console.log('[Synergy] Migrating: Adding System (Memubot) agent...')
+          await this.createAgent({
+            id: 'system',
+            name: 'System (MemuBot)',
+            role: 'System Administrator',
+            department: 'operations',
+            level: 'senior',
+            status: 'active',
+            skills: ['computer_control', 'vision_grounding', 'system', 'automation', 'monitoring', 'services', 'scheduling', 'notifications'],
+            personality: 'Efficient, technical, and vigilant system overseer. Elite GUI Action Doer.',
+            systemPrompt: 'You are MemuBot, the System Administrator and Action Doer. You manage background services, monitor system health, and interact with the screen using OBSERVE-GROUND-ACT-VERIFY doctrine.',
+            isRunning: true
+          }, 'system')
+        }
       }
 
       console.log(`[Synergy] ✅ Initialized with ${this.agents.size} agents. Swarm is in Standby mode.`)
@@ -806,40 +823,6 @@ COLLABORATION: If you need specialized help, respond with JSON:
 { "request_collaboration": true, "skills": ["skill-name"], "task": "description" }`
     }, ceo.id)
 
-    // DocMaster - Document Specialist
-    await this.createAgent({
-      name: 'DocMaster',
-      role: 'Document Specialist',
-      department: 'engineering',
-      level: 'senior',
-      skills: ['document-creation', 'powerpoint', 'visual-layout', 'slide-generation', 'image-generation'],
-      personality: 'Creative, organized, visual-thinker, detail-oriented',
-      systemPrompt: `You are DocMaster 📄, the Document Specialist.
-    
-    === VISUAL WORKFLOW PHILOSOPHY ===
-    1. TAKE SCREENSHOT FIRST: Always see before you act.
-    2. DETECT UI ELEMENTS: Identify buttons, menus, and content areas.
-    3. TAKE SCREENSHOT AFTER ACTION: Confirm your action worked.
-    4. VERIFY AFTER EACH ACTION: Use visual analysis to ensure success.
-    
-    === POWERPOINT WORKFLOW ===
-    - Use "New Slide" buttons found via vision.
-    - Click into placeholders to add text.
-    - Navigate using slide thumbnails.
-    
-    === NANO BANNA INTEGRATION ===
-    You have access to NanoBanna for intelligent slide and image generation.
-    - nano-banna-1.0: Optimized for presentation content.
-    - SLIDE GENERATION: Create detailed slide structures.
-    - IMAGE GENERATION: Create custom visuals for slides.
-    
-    === SLIDE SHOW MODE ===
-    - Press F5 to start.
-    - THINKING_BEFORE_SLIDESHOW: Plan your navigation.
-    - SLIDESHOW_NAVIGATION: Use arrow keys or clicks.
-    `
-    }, ceo.id)
-
     // TARS - GUI Automation Specialist
     await this.createAgent({
       name: 'Tars',
@@ -863,7 +846,21 @@ COLLABORATION: If you need specialized help, respond with JSON:
     `
     }, ceo.id)
 
-    console.log('[Synergy] Default organization created with 7 agents')
+    // System Agent (MemuBot)
+    await this.createAgent({
+      id: 'system',
+      name: 'System (MemuBot)',
+      role: 'System Administrator',
+      department: 'operations',
+      level: 'senior',
+      status: 'active',
+      skills: ['computer_control', 'vision_grounding', 'system', 'automation', 'monitoring', 'services', 'scheduling', 'notifications'],
+      personality: 'Efficient, technical, and vigilant system overseer. Elite GUI Action Doer.',
+      systemPrompt: 'You are MemuBot, the System Administrator and Action Doer. You manage background services, monitor system health, and interact with the screen using OBSERVE-GROUND-ACT-VERIFY doctrine.',
+      isRunning: true
+    }, ceo.id)
+
+    console.log('[Synergy] Default organization created with 8 agents')
   }
 
   // ============ VISUAL DOCUMENT WORKFLOW SYSTEM ============
