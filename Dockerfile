@@ -1,27 +1,20 @@
-# 1. البيئة الأساسية
-FROM python:3.10-slim
+FROM node:18-slim
 
-# 2. تثبيت الأدوات اللازمة للمتصفح وقاعدة البيانات
+# تثبيت متطلبات المتصفح للعمل في بيئة لينكس
 RUN apt-get update && apt-get install -y \
-    wget gnupg unzip curl chromium chromium-driver libpq-dev gcc \
+    chromium \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
-
-# 3. إعدادات الكروم للعمل داخل الحاوية
-ENV CHROME_BIN=/usr/bin/chromium \
-    CHROME_PATH=/usr/lib/chromium/ \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
 
 WORKDIR /app
 
-# 4. إنشاء ملف المتطلبات (في حال نسيت إضافته للريبو)
-RUN echo "selenium\nwebdriver-manager\npandas\nsqlalchemy\npsycopg2-binary\nrequests\nbeautifulsoup4" > requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# نسخ ملفات التعريف وتثبيت المكتبات
+COPY package*.json ./
+RUN npm install
 
-# 5. نسخ الملفات
+# نسخ ملفات المشروع
 COPY . .
 
-# 6. أمر التشغيل (هنا نحتاج لتحديد ملف البداية)
-# بما أن الريبو لا يحتوي على main.py، سنفترض أنك ستنشئ واحداً أو تشغل أحد السكربتات الموجودة
-# سأضع أمراً افتراضياً يمكنك تعديله لاحقاً لاسم ملفك التشغيلي
-CMD ["python", "arabClaw/spiders/example_spider.py"]
+# تشغيل المشروع (بناءً على أوامر npm start في الريبو)
+CMD ["npm", "start"]
