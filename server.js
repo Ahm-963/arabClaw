@@ -1,112 +1,171 @@
 const express = require('express');
 const { exec } = require('child_process');
+const { Pool } = require('pg'); // للاتصال بقاعدة البيانات
 const app = express();
 const port = process.env.PORT || 5000;
 
+// إعداد الاتصال بقاعدة البيانات (تأكد من مطابقة البيانات للكومبوز)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://claw_user:claw_password@db:5432/arabclaw_db'
+});
+
 app.use(express.json());
 
-// واجهة المستخدم (HTML)
-app.get('/', (req, res) => {
+// واجهة المستخدم الاحترافية
+app.get('/', async (req, res) => {
+    // جلب بعض الإحصائيات البسيطة من قاعدة البيانات
+    let totalScraped = 0;
+    try {
+        const result = await pool.query('SELECT count(*) FROM scraped_data'); // افترضنا اسم الجدول
+        totalScraped = result.rows[0].count;
+    } catch (e) { totalScraped = "قيد الإعداد"; }
+
     res.send(`
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>لوحة تحكم ArabClaw</title>
+            <title>ArabClaw Pro Dashboard</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
             <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-                .container { max-width: 800px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-                h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
-                .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-                input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; outline: none; transition: border 0.3s; }
-                input[type="text"]:focus { border-color: #3498db; }
-                button { padding: 12px 25px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.3s; font-weight: bold; }
-                button:hover { background-color: #219150; }
-                button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-                #logs { background-color: #1e1e1e; color: #00ff00; padding: 20px; border-radius: 6px; height: 400px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; line-height: 1.5; white-space: pre-wrap; border: 1px solid #333; margin-top: 20px; }
-                .status { margin-top: 10px; font-size: 0.9em; color: #666; }
+                :root { --primary-color: #2c3e50; --accent-color: #3498db; }
+                body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+                .sidebar { background: var(--primary-color); color: white; min-height: 100vh; padding: 20px; }
+                .main-content { padding: 30px; }
+                .stat-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
+                .stat-card:hover { transform: translateY(-5px); }
+                #live-logs { background: #1e1e1e; color: #00ff00; height: 300px; overflow-y: auto; font-family: monospace; padding: 15px; border-radius: 10px; font-size: 13px; }
+                .btn-primary { background: var(--accent-color); border: none; }
+                .table-container { background: white; border-radius: 15px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
             </style>
         </head>
         <body>
-            <div class="container">
-                <h1>🕷️ لوحة تحكم ArabClaw</h1>
-                <div class="input-group">
-                    <input type="text" id="url" placeholder="أدخل رابط الموقع للزحف إليه (مثال: https://books.toscrape.com)">
-                    <button id="btn" onclick="startScraping()">بدء الزحف</button>
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-2 sidebar">
+                        <h3 class="mb-4">ArabClaw 🕷️</h3>
+                        <nav class="nav flex-column">
+                            <a class="nav-link text-white active" href="#"><i class="fas fa-home me-2"></i> الرئيسية</a>
+                            <a class="nav-link text-white" href="#" onclick="fetchResults()"><i class="fas fa-database me-2"></i> قاعدة البيانات</a>
+                            <a class="nav-link text-white" href="#"><i class="fas fa-cog me-2"></i> الإعدادات</a>
+                        </nav>
+                    </div>
+
+                    <div class="col-md-10 main-content">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2>لوحة التحكم الاحترافية</h2>
+                            <button class="btn btn-outline-dark" onclick="window.location.reload()"><i class="fas fa-sync"></i> تحديث</button>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <h6 class="text-muted">إجمالي الروابط المزحوفة</h6>
+                                    <h3>${totalScraped}</h3>
+                                    <i class="fas fa-link float-end opacity-25" style="font-size: 2rem; margin-top: -30px;"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="stat-card">
+                                    <h6 class="text-muted">حالة النظام</h6>
+                                    <h3 class="text-success">متصل ✅</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-container mb-4">
+                            <h5>إصدار أمر زحف جديد</h5>
+                            <div class="input-group mb-3">
+                                <input type="text" id="target-url" class="form-control" placeholder="أدخل رابط الموقع كاملاً...">
+                                <button class="btn btn-primary" onclick="executeScrape()">ابدأ الزحف الذكي</button>
+                            </div>
+                            <div id="live-logs">في انتظار الأوامر...</div>
+                        </div>
+
+                        <div class="table-container">
+                            <div class="d-flex justify-content-between mb-3">
+                                <h5>آخر النتائج المستخرجة</h5>
+                                <button class="btn btn-success btn-sm" onclick="exportData()"><i class="fas fa-file-excel"></i> تصدير إكسيل</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>العنوان</th>
+                                            <th>الرابط</th>
+                                            <th>تاريخ العملية</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="data-body">
+                                        </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="status">سجل العمليات المباشر:</div>
-                <div id="logs">انتظار الأوامر...</div>
             </div>
 
             <script>
-                function startScraping() {
-                    const url = document.getElementById('url').value;
-                    const btn = document.getElementById('btn');
-                    const logs = document.getElementById('logs');
-
-                    if (!url) {
-                        alert("الرجاء إدخال رابط صحيح!");
-                        return;
-                    }
-
-                    btn.disabled = true;
-                    btn.innerText = "جاري العمل...";
-                    logs.innerText += "\\n----------------------------------\\n> جاري بدء الزحف إلى: " + url + "\\n";
-
+                function executeScrape() {
+                    const url = document.getElementById('target-url').value;
+                    const logBox = document.getElementById('live-logs');
+                    logBox.innerHTML += "\\n[START] جاري معالجة: " + url + "...";
+                    
                     fetch('/scrape', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url })
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({url})
                     })
-                    .then(response => response.json())
+                    .then(res => res.json())
                     .then(data => {
-                        logs.innerText += "> النتيجة: " + data.message + "\\n";
-                        logs.innerText += "> المخرجات: \\n" + (data.details || "لا توجد تفاصيل إضافية") + "\\n";
-                        logs.scrollTop = logs.scrollHeight; // التمرير للأسفل تلقائياً
-                        btn.disabled = false;
-                        btn.innerText = "بدء الزحف";
-                    })
-                    .catch(err => {
-                        logs.innerText += "> خطأ في الاتصال: " + err + "\\n";
-                        btn.disabled = false;
-                        btn.innerText = "بدء الزحف";
+                        logBox.innerHTML += "\\n[DONE] " + data.message;
+                        logBox.scrollTop = logBox.scrollHeight;
+                        fetchResults(); // تحديث الجدول تلقائياً
                     });
                 }
+
+                function fetchResults() {
+                    fetch('/api/results')
+                    .then(res => res.json())
+                    .then(data => {
+                        const tbody = document.getElementById('data-body');
+                        tbody.innerHTML = data.map(row => \`
+                            <tr>
+                                <td>\${row.id}</td>
+                                <td>\${row.title || 'بدون عنوان'}</td>
+                                <td><a href="\${row.url}" target="_blank">زيارة</a></td>
+                                <td>\${new Date(row.created_at).toLocaleString('ar-EG')}</td>
+                            </tr>
+                        \`).join('');
+                    });
+                }
+
+                // تحميل البيانات عند فتح الصفحة
+                fetchResults();
             </script>
         </body>
         </html>
     `);
 });
 
-// استقبال طلب الزحف
+// API لجلب البيانات من Postgres
+app.get('/api/results', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM scraped_data ORDER BY created_at DESC LIMIT 10');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// استقبال أوامر الزحف
 app.post('/scrape', (req, res) => {
     const targetUrl = req.body.url;
-    
-    // تشغيل أمر npm start وتمرير الرابط كـ argument
-    // ملاحظة: قد تحتاج لتعديل الأمر حسب كيفية استقبال الكود الأصلي للرابط
-    // هذا الأمر يفترض أن السكربت يقبل --url
-    console.log(`Starting scrape for: ${targetUrl}`);
-    
-    // استخدام timeout لكي لا يعلق السيرفر
-    exec(`npm start -- --url="${targetUrl}"`, { timeout: 60000 }, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`exec error: ${error}`);
-            return res.json({ 
-                message: "حدث خطأ أثناء التنفيذ", 
-                details: stderr || error.message 
-            });
-        }
-        
-        console.log(`stdout: ${stdout}`);
-        res.json({ 
-            message: "تمت عملية الزحف بنجاح!", 
-            details: stdout 
-        });
+    exec(`npm start -- --url="${targetUrl}"`, (error, stdout, stderr) => {
+        res.json({ message: "اكتملت العملية", output: stdout });
     });
 });
 
-// الاستماع على 0.0.0.0 هو الحل لمشكلة Bad Gateway
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${port}`);
-});
+app.listen(port, '0.0.0.0', () => console.log('Server running on port ' + port));
