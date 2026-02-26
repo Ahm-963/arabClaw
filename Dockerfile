@@ -1,20 +1,26 @@
 FROM node:18-slim
 
-# تثبيت متطلبات المتصفح للعمل في بيئة لينكس
+# تثبيت Chromium لعمل الزاحف
 RUN apt-get update && apt-get install -y \
     chromium \
-    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    fonts-kacst \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 WORKDIR /app
 
-# نسخ ملفات التعريف وتثبيت المكتبات
 COPY package*.json ./
 RUN npm install
+# تثبيت express للواجهة
+RUN npm install express
 
-# نسخ ملفات المشروع
 COPY . .
 
-# تشغيل المشروع (بناءً على أوامر npm start في الريبو)
-CMD ["npm", "start"]
+# فتح المنفذ 5000 للواجهة
+EXPOSE 5000
+
+# تشغيل ملف السيرفر الذي أنشأناه
+CMD ["node", "server.js"]
