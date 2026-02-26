@@ -1,7 +1,7 @@
-# 1. استخدام نسخة بايثون مستقرة وخفيفة
+# استخدام نسخة بايثون مستقرة
 FROM python:3.10-slim
 
-# 2. تثبيت التبعات الأساسية للمتصفح (Chrome/Chromium) والاعتمادات لنظام Linux
+# تثبيت المتطلبات اللازمة لـ Selenium و Chromium وقاعدة البيانات
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -13,20 +13,19 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. ضبط متغيرات البيئة ليعمل المتصفح داخل الحاوية بدون مشاكل
+# ضبط بيئة العمل للمتصفح (Headless mode)
 ENV CHROME_BIN=/usr/bin/chromium \
     CHROME_PATH=/usr/lib/chromium/ \
     PYTHONUNBUFFERED=1
 
-# 4. تحديد مجلد العمل داخل الحاوية
 WORKDIR /app
 
-# 5. نسخ ملف المكتبات وتثبيتها
+# تثبيت مكتبات بايثون (تأكد من وجود ملف requirements.txt في الريبو)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. نسخ بقية ملفات المشروع
+# نسخ ملفات المشروع
 COPY . .
 
-# 7. أمر التشغيل (تأكد من اسم الملف الرئيسي في المشروع، عادة يكون main.py)
+# أمر التشغيل الأساسي
 CMD ["python", "main.py"]
